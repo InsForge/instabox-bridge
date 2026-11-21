@@ -1,13 +1,24 @@
-import { invoke } from "@tauri-apps/api/core";
+import { invoke as nativeInvoke, isTauri } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
 import type { AdeId, AppState, ErrorView } from "./types";
+
+/** `bun run dev` in a browser: sample data from preview.ts, never the native app. */
+export const isBrowserPreview = import.meta.env.DEV && !isTauri();
+const preview = () => import("./preview");
+const invoke = <T,>(command: string, args?: Record<string, unknown>): Promise<T> =>
+  isBrowserPreview
+    ? preview().then((p) => p.invokePreview(command, args) as Promise<T>)
+    : args === undefined
+      ? nativeInvoke<T>(command)
+      : nativeInvoke<T>(command, args);
 
 /** Thin wrappers over the Tauri commands. Rejections are ErrorView objects. */
 export type Agent = "claude" | "codex";
 export type McpClient = "claudeCode" | "codex";
 
 export const getState = () => invoke<AppState>("get_state");
-export const onState = (cb: (s: AppState) => void) => listen<AppState>("state", (e) => cb(e.payload));
+export const onState = (cb: (s: AppState) => void) =>
+  isBrowserPreview ? preview().then((p) => p.onPreviewState(cb)) : listen<AppState>("state", (e) => cb(e.payload));
 
 export const signIn = (provider: "github" | "google") => invoke<void>("sign_in", { provider });
 export const signOut = () => invoke<void>("sign_out");

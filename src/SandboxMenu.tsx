@@ -221,7 +221,7 @@ export default function SandboxMenu({ s, state, run, mode, anchor, container, on
       <Sep />
       {paired && !s.desktopBehind && <Item onClick={() => act(() => reinstallT3(s.id))}>Reinstall T3</Item>}
       <Item danger onClick={() => (confirmDelete ? act(() => deleteSandbox(s.id)) : setConfirmDelete(true))}>
-        {confirmDelete ? "Confirm delete" : "Delete sandbox…"}
+        {confirmDelete ? "Confirm delete" : "Delete sandbox"}
       </Item>
     </div>
   );

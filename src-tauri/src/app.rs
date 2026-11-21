@@ -771,7 +771,7 @@ fn account_changed() -> ErrorView {
 
 fn unknown_ade() -> ErrorView {
     ErrorView::other(
-        "A newer version of Instabox connected this sandbox to another ADE. Update Instabox to use it.",
+        "A newer version of InstaBox connected this sandbox to another ADE. Update InstaBox to use it.",
     )
 }
 

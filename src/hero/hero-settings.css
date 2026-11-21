@@ -1,0 +1,43 @@
+.hero-tune-trigger {
+  position: absolute;
+  z-index: 4;
+  left: 12px;
+  bottom: 8px;
+  padding: 3px 7px;
+  border: 1px solid var(--control);
+  border-radius: 4px;
+  background: #111c;
+  color: var(--muted);
+  font-size: 10px;
+  cursor: pointer;
+}
+.hero-tune-trigger:hover { color: var(--text); background: #222; }
+.hero-settings {
+  position: absolute;
+  z-index: 45;
+  top: 207px;
+  left: 8px;
+  right: 8px;
+  max-height: calc(100% - 215px);
+  overflow-y: auto;
+  padding: 14px;
+  border: 1px solid var(--control);
+  border-radius: 8px;
+  background: #191919;
+  box-shadow: 0 8px 28px #000b;
+}
+.hero-settings-heading, .hero-settings-footer { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.hero-settings-heading strong { display: block; font-size: 13px; }
+.hero-settings-heading span, .hero-settings-footer > span { font-size: 10px; color: var(--muted); }
+.hero-settings-hint { margin: 8px 0 12px; font-size: 11px; line-height: 16px; color: var(--muted); }
+.hero-setting { display: block; margin: 9px 0; font-size: 11px; }
+.hero-setting > span { display: flex; justify-content: space-between; gap: 8px; }
+.hero-setting output { color: var(--muted); font-variant-numeric: tabular-nums; }
+.hero-setting input { display: block; width: 100%; margin: 5px 0 0; height: 14px; accent-color: #ddd; cursor: pointer; }
+.hero-setting input:focus-visible { outline: 1px solid var(--muted); outline-offset: 3px; }
+.hero-settings-footer { margin-top: 12px; }
+.hero-settings-footer .btn { min-height: 26px; padding: 3px 9px; font-size: 11px; }
+
+.hero-pattern-settings { margin: 14px 0 0; padding: 6px 0 0; border: 0; border-top: 1px solid var(--control); }
+.hero-pattern-settings legend { padding-right: 8px; color: var(--muted); font-size: 11px; }
+.hero-orca-pause { width: 100%; min-height: 28px; font-size: 11px; }

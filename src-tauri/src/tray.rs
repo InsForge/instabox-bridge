@@ -279,7 +279,7 @@ fn build_menu(app: &AppHandle, rows: &[TrayRow]) -> tauri::Result<Menu<tauri::Wr
     if !rows.is_empty() {
         menu.append(&PredefinedMenuItem::separator(app)?)?;
     }
-    menu.append(&item(app, "show".into(), "Open Instabox")?)?;
+    menu.append(&item(app, "show".into(), "Open InstaBox")?)?;
     menu.append(&item(app, "quit".into(), "Quit")?)?;
     Ok(menu)
 }
@@ -289,7 +289,7 @@ pub fn build(app: &AppHandle, core: Arc<Core>) -> tauri::Result<()> {
     let mut builder = TrayIconBuilder::with_id(TRAY_ID)
         .menu(&menu)
         .show_menu_on_left_click(false)
-        .tooltip("Instabox")
+        .tooltip("InstaBox")
         .on_tray_icon_event(|tray, event| {
             if let TrayIconEvent::Click {
                 button: MouseButton::Left,

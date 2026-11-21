@@ -1,0 +1,182 @@
+.hero-atmosphere {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  z-index: 0;
+  opacity: var(--hero-background-opacity, 1);
+  mask-image: linear-gradient(to bottom, #000 var(--hero-fade-start), transparent var(--hero-fade-end));
+  -webkit-mask-image: linear-gradient(to bottom, #000 var(--hero-fade-start), transparent var(--hero-fade-end));
+}
+
+.hero-atmosphere[data-theme='orca'] {
+  overflow: hidden;
+  background:
+    radial-gradient(ellipse 75% 110% at 28% -25%, #1e4858 0%, #0b2634 43%, transparent 80%),
+    linear-gradient(180deg, #06141f 0%, #030d16 65%, #010508 100%);
+}
+
+.orca-light-rays {
+  position: absolute;
+  inset: -50% -25%;
+  transform-origin: 35% 0;
+  background: conic-gradient(from 150deg at 35% 0%,
+    transparent 0deg, #83c9dd0d 6deg, transparent 12deg,
+    transparent 20deg, #83c9dd12 24deg, transparent 31deg,
+    transparent 42deg, #83c9dd0a 46deg, transparent 52deg);
+  filter: blur(7px);
+  animation: orca-light-drift var(--orca-light-duration, 18s) ease-in-out infinite alternate;
+}
+
+.orca-water-light {
+  position: absolute;
+  inset: -25% -20%;
+  background:
+    radial-gradient(ellipse 20% 85% at 30% 0%, #8dd8ea24, transparent 75%),
+    radial-gradient(ellipse 32% 45% at 75% 5%, #76bfd21a, transparent 80%);
+  filter: blur(9px);
+  mix-blend-mode: screen;
+  transform-origin: 50% 0;
+  opacity: .55;
+  animation: orca-water-shimmer var(--orca-water-light-duration, 14s) ease-in-out infinite alternate;
+}
+
+.orca-marine-snow {
+  position: absolute;
+  inset: -25%;
+  opacity: .28;
+  background:
+    radial-gradient(circle at 15% 25%, #a4c6d7 0 .6px, transparent 1px) 0 0 / 83px 67px,
+    radial-gradient(circle at 70% 65%, #7297aa 0 .5px, transparent 1px) 0 0 / 113px 89px,
+    radial-gradient(circle at 45% 40%, #7297aa80 0 1px, transparent 1.7px) 0 0 / 151px 107px;
+  animation: orca-particle-drift var(--orca-particle-duration, 24s) linear infinite;
+}
+
+.hero-atmosphere[data-theme='cmux'] {
+  overflow: hidden;
+  background: #2d65b0;
+}
+
+.hero-atmosphere[data-theme='cmux']::before {
+  content: '';
+  position: absolute;
+  inset: -35%;
+  background:
+    radial-gradient(ellipse at 20% 35%, #12c7f5 0%, transparent 58%),
+    radial-gradient(ellipse at 80% 40%, #6c5cff 0%, transparent 58%),
+    linear-gradient(115deg, #12c7f5 0%, #2d8cff 48%, #6c5cff 100%);
+  animation: cmux-gradient-drift 8s ease-in-out infinite;
+}
+
+.hero-atmosphere[data-theme='cmux']::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(to bottom, #0003, #0008);
+}
+
+@keyframes cmux-gradient-drift {
+  0%, 100% { transform: translate(-8%, -4%) rotate(-8deg) scale(1.04); }
+  33% { transform: translate(7%, 5%) rotate(6deg) scale(1.1); }
+  66% { transform: translate(-2%, 8%) rotate(-3deg) scale(1.02); }
+}
+
+.hero-atmosphere[data-theme='paradev'] {
+  background: linear-gradient(#111 0%, #090909 65%, #000 100%);
+}
+
+.hero-atmosphere[data-theme='paradev']::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  opacity: var(--paradev-light-opacity, 1);
+  background:
+    radial-gradient(ellipse var(--paradev-light-source-width, 36%) 20% at 50% -4%, #a1a8ac66 0%, transparent 100%),
+    radial-gradient(ellipse var(--paradev-light-width, 55%) var(--paradev-light-reach, 100%) at 50% -24%, #60666b 0%, #282c3066 50%, transparent 85%);
+}
+
+.paradev-pixels {
+  position: relative;
+  width: 100%;
+  height: 100%;
+}
+
+/* Both depths stay inside the atmosphere's z-index: 0 stacking context,
+   so the whales always swim behind the cube. */
+.hero-orca-layer {
+  position: absolute;
+  inset: 0;
+}
+.orca-current {
+  position: absolute;
+  top: var(--orca-y, 25%);
+  left: 0;
+  width: 100%;
+  animation: orca-crossing var(--orca-duration, 28s) linear infinite;
+  animation-delay: var(--orca-delay, -7s);
+}
+.orca-swimmer {
+  width: var(--orca-width, 273px);
+  opacity: var(--orca-opacity, .2);
+  animation: orca-swim var(--orca-swim-duration, 5.6s) ease-in-out infinite;
+}
+.swimming-orca {
+  display: block;
+  width: 100%;
+  height: auto;
+  filter: brightness(.78) saturate(.7);
+}
+.orca-current-distant {
+  top: calc(var(--orca-y, 25%) - 11%);
+  animation-duration: var(--orca-distant-duration, 39s);
+  animation-delay: var(--orca-distant-delay, -23s);
+  animation-direction: reverse;
+}
+.orca-current-distant .orca-swimmer {
+  width: var(--orca-distant-width, 150.8px);
+  opacity: calc(var(--orca-opacity, .2) * .375);
+  animation-duration: var(--orca-distant-swim-duration, 7.4s);
+  animation-delay: var(--orca-distant-swim-delay, -3s);
+}
+.orca-current-distant .swimming-orca {
+  transform: scaleX(-1);
+  filter: brightness(.65) saturate(.5) blur(.45px);
+}
+
+@keyframes orca-crossing {
+  0% { transform: translate(calc(-1 * max(65%, var(--orca-width, 273px))), 7px); opacity: 0; }
+  12% { opacity: 1; }
+  48% { transform: translate(17%, -6px); }
+  85% { opacity: 1; }
+  100% { transform: translate(105%, 6px); opacity: 0; }
+}
+@keyframes orca-swim {
+  0%, 100% { transform: translateY(2px) rotate(1.5deg); }
+  50% { transform: translateY(-2px) rotate(-1.5deg); }
+}
+@keyframes orca-light-drift {
+  from { transform: rotate(-5deg); opacity: .45; }
+  to { transform: translateX(10px) rotate(4deg); opacity: .85; }
+}
+@keyframes orca-water-shimmer {
+  0% { transform: translate(-5%, -3%) rotate(-7deg) scaleX(.9); opacity: .35; }
+  50% { opacity: .7; }
+  100% { transform: translate(6%, 4%) rotate(6deg) scaleX(1.1); opacity: .45; }
+}
+@keyframes orca-particle-drift {
+  from { transform: translate(0, 0); }
+  to { transform: translate(19px, -29px); }
+}
+
+.orca-current, .orca-swimmer, .orca-light-rays, .orca-water-light, .orca-marine-snow {
+  animation-play-state: var(--orca-play-state, running);
+}
+
+.hero-atmosphere[data-paused='true'] *,
+.hero-atmosphere[data-paused='true']::before { animation-play-state: paused; }
+
+@media (prefers-reduced-motion: reduce) {
+  .hero-atmosphere[data-theme='cmux']::before { animation: none; }
+  .orca-current, .orca-swimmer, .orca-light-rays, .orca-water-light, .orca-marine-snow { animation: none; }
+  .orca-current-near { transform: translateX(-9%) rotate(-3deg); }
+  .orca-current-distant { transform: translateX(64%); }
+}

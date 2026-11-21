@@ -1,0 +1,133 @@
+.hero-cube-scene {
+  position: relative;
+  height: auto;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin: 0 auto;
+  isolation: isolate;
+}
+.hero-cube-control {
+  --cube-scale: clamp(0.42, calc((100dvh - 360px) / 640px), 0.82);
+  position: relative;
+  display: block;
+  width: 100%;
+  height: calc(
+    min(var(--stage-height, 420px), 400px * var(--cube-scale) + 80px) +
+      (var(--stage-headroom, 0px) + var(--stage-floor-offset, 120px)) * var(--cube-scale)
+  );
+  max-width: 500px;
+  min-width: 0;
+  padding: 0;
+  border: 0;
+  border-radius: 16px;
+  background: transparent;
+  cursor: default;
+  touch-action: manipulation;
+  user-select: none;
+  -webkit-user-select: none;
+}
+.hero-cube-scale {
+  display: block;
+  position: absolute;
+  left: 50%;
+  top: calc(50% + (var(--stage-headroom, 0px) - var(--stage-floor-offset, 120px)) * var(--cube-scale) / 2);
+  width: 400px;
+  height: 400px;
+  transform: translate(-50%, -50%) scale(var(--cube-scale));
+  pointer-events: none;
+}
+.hero-cube-perspective {
+  display: block;
+  position: relative;
+  top: calc(-20px / var(--cube-scale));
+  width: 100%;
+  height: 100%;
+  perspective: 1400px;
+}
+.hero-cube-cube {
+  --case-base: var(--cube-color, #101112);
+  display: block;
+  position: relative;
+  width: 100%;
+  height: 100%;
+  transform-style: preserve-3d;
+  will-change: transform;
+}
+.hero-cube-face {
+  position: absolute;
+  inset: 0;
+  box-sizing: border-box;
+  border-radius: 0;
+  border: 0;
+  backface-visibility: hidden;
+  background: var(--case-base);
+}
+.hero-cube-top,
+.hero-cube-bottom {
+  border-radius: 28px;
+}
+.hero-cube-top-logo {
+  position: absolute;
+  width: 180px;
+  height: auto;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  opacity: 0.65;
+}
+.hero-cube-scene[data-ade='t3'] .hero-cube-top-logo { filter: invert(1); }
+.hero-cube-front,
+.hero-cube-back,
+.hero-cube-left,
+.hero-cube-right {
+  left: 28px;
+  right: 28px;
+}
+.hero-cube-front {
+  transform: translateZ(200px);
+}
+.hero-cube-back {
+  transform: rotateY(180deg) translateZ(200px);
+}
+.hero-cube-left {
+  transform: rotateY(-90deg) translateZ(200px);
+}
+.hero-cube-right {
+  transform: rotateY(90deg) translateZ(200px);
+}
+.hero-cube-top {
+  transform: translateY(calc(-1 * var(--lid-offset, 0px))) rotateX(90deg) translateZ(200px);
+}
+.hero-cube-bottom {
+  transform: rotateX(-90deg) translateZ(200px);
+}
+.hero-cube-rounded-edge {
+  position: absolute;
+  top: 0;
+  left: 0;
+  height: 400px;
+  transform-origin: 0 0;
+  backface-visibility: hidden;
+}
+.hero-cube-control:focus-visible {
+  outline: 1px solid #8e9297;
+  outline-offset: 6px;
+}
+
+/* The fallback uses the same uniform material on every face. WebGL supplies
+   the scene lighting without opacity masks or a fade painted into the metal. */
+.hero-cube-rounded-edge {
+  background: var(--case-base);
+}
+.hero-cube-lit-canvas {
+  position: absolute;
+  left: -200px;
+  top: -200px;
+  width: 800px;
+  height: 800px;
+  pointer-events: none;
+}
+.hero-cube-perspective[data-lit='true'] .hero-cube-cube {
+  visibility: hidden;
+}

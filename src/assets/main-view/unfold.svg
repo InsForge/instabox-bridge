@@ -1,0 +1,10 @@
+<svg preserveAspectRatio="none" overflow="visible" style="display: block;" width="20" height="20" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
+<g id="unfold_more">
+<mask id="mask0_0_199" style="mask-type:alpha" maskUnits="userSpaceOnUse" x="0" y="0" width="20" height="20">
+<rect id="Bounding box" width="20" height="20" fill="#D9D9D9"/>
+</mask>
+<g mask="url(#mask0_0_199)">
+<path id="unfold_more_2" d="M10 16.6954L6.8975 13.5929L7.65542 12.835L10 15.1796L12.3446 12.835L13.1025 13.5929L10 16.6954ZM7.65542 7.13292L6.8975 6.375L10 3.2725L13.1025 6.375L12.3446 7.13292L10 4.78833L7.65542 7.13292Z" fill="#A3A3A3"/>
+</g>
+</g>
+</svg>

@@ -17,11 +17,15 @@ import {
 import type { Agent } from "./api";
 import { AdeBadge, adeName, hasAde, localAde, pairs } from "./ades";
 import type { Mode } from "./ades";
-import { AGENTS, agentKey, BUSY, cap, copyText, isAsleep, isFree, Line, openExternal, StateDot, stateLabel, thisComputer } from "./common";
+import { AGENTS, agentKey, BUSY, copyText, isAsleep, isFree, Line, openExternal, StateDot, stateLabel, thisComputer } from "./common";
 import type { AgentCache, OnAgentStatus, Run } from "./common";
 import { Check, Copy, Plus, Terminal } from "./icons";
+import claudeLogo from "./assets/agents/claude-code.svg";
+import codexLogo from "./assets/agents/codex.svg";
 import Progress from "./Progress";
 import type { AdeId, AppState, SandboxView } from "./types";
+
+const agentLogos: Record<Agent, string> = { claude: claudeLogo, codex: codexLogo };
 
 interface Props {
   state: AppState;
@@ -104,7 +108,7 @@ function AgentRow({ id, running, agent, label, signedIn, run, onStatus }: AgentR
   }, [id, running, agent]);
   return (
     <div className="group-row">
-      <span>{label}</span>
+      <span className="agent-label"><img src={agentLogos[agent]} alt="" aria-hidden="true" />{label}</span>
       {signedIn ? (
         <span className="ok">
           <Check />
@@ -390,13 +394,12 @@ export default function Details({ state, sandbox: s, run, mode, agents, onAgentS
               </span>
             </p>
           )}
+
+          <hr className="delete-divider" />
+          <button className="btn text red lg" onClick={() => (confirmDelete ? run(() => deleteSandbox(s.id)) : setConfirmDelete(true))}>
+            {confirmDelete ? "Confirm delete" : "Delete sandbox"}
+          </button>
         </div>
-      </div>
-      <div className="foot tight">
-        <span>{cap(state.tier)} plan</span>
-        <button className="btn text red" onClick={() => (confirmDelete ? run(() => deleteSandbox(s.id)) : setConfirmDelete(true))}>
-          {confirmDelete ? "Confirm delete" : "Delete sandbox…"}
-        </button>
       </div>
     </>
   );

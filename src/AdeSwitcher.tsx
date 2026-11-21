@@ -1,9 +1,11 @@
 import { useEffect, useRef } from "react";
+import { createPortal } from "react-dom";
 import type { KeyboardEvent } from "react";
 import { AdeBadge, COMING_SOON, modeName } from "./ades";
 import type { Mode } from "./ades";
 import { thisComputer } from "./common";
-import { Check, ChevronDown } from "./icons";
+import unfold from "./assets/main-view/unfold.svg";
+import { Check } from "./icons";
 import type { AdeView, AppState } from "./types";
 
 interface Props {
@@ -27,6 +29,8 @@ function adeLine(a: AdeView, state: AppState) {
 export default function AdeSwitcher({ state, mode, open, onOpenChange, onChoose }: Props) {
   const button = useRef<HTMLButtonElement>(null);
   const menu = useRef<HTMLDivElement>(null);
+  // The menu goes on the popover itself, so no header clips it.
+  const container = button.current?.closest<HTMLElement>(".popover");
   const name = modeName(state, mode);
 
   const close = (refocus: boolean) => {
@@ -92,19 +96,19 @@ export default function AdeSwitcher({ state, mode, open, onOpenChange, onChoose 
     <>
       <button
         ref={button}
-        className="ade-switch"
+        className="ade-picker"
+        title={name}
         aria-label={`ADE: ${name}. Switch ADE`}
         aria-haspopup="menu"
         aria-expanded={open}
         onClick={() => onOpenChange(!open)}
       >
         <AdeBadge id={mode} />
-        <span className="ade-switch-name">{name}</span>
-        <ChevronDown />
+        <img src={unfold} alt="" />
       </button>
-      {open && (
+      {open && container && createPortal(
         <div ref={menu} role="menu" aria-label="Open sandboxes in" className="menu ade-menu" onKeyDown={onKeyDown}>
-          {item("instabox", "Instabox", "Sandboxes only, no ADE")}
+          {item("instabox", "InstaBox", "Sandboxes only, no ADE")}
           <div className="menu-sep" role="separator" />
           <span className="ade-menu-label">Open sandboxes in an ADE</span>
           {state.ades.map((a) => item(a.id, a.name, adeLine(a, state)))}
@@ -119,8 +123,9 @@ export default function AdeSwitcher({ state, mode, open, onOpenChange, onChoose 
             </button>
           ))}
           <div className="menu-sep" role="separator" />
-          <p className="ade-menu-note">Switching changes the colors and the actions on each sandbox. Every sandbox stays in the list.</p>
-        </div>
+          <p className="ade-menu-note">Switching changes the background and the actions on each sandbox. Every sandbox stays in the list.</p>
+        </div>,
+        container,
       )}
     </>
   );

@@ -3,7 +3,7 @@ import { refreshAdes } from "./api";
 import { AdeBadge, adeName, localAde } from "./ades";
 import { openExternal, thisComputer } from "./common";
 import type { Run } from "./common";
-import { Alert, Close, Info } from "./icons";
+import { Alert } from "./icons";
 import type { AdeId, AppState } from "./types";
 
 /** Looks for the ADEs on this computer again, and shows that it did. */
@@ -39,7 +39,7 @@ export function AdeMissing({ state, ade, run }: { state: AppState; ade: AdeId; r
           <span className="strong">
             {name} is not on {thisComputer()}
           </span>
-          <span className="small soft">Instabox opens sandboxes in {name}. Install it first.</span>
+          <span className="small soft">InstaBox opens sandboxes in {name}. Install it first.</span>
         </div>
       </div>
       <div className="warn-buttons">
@@ -71,7 +71,7 @@ export function ConnectAdeCard({ state, onConnect, onNotNow }: { state: AppState
       <div className="ade-card-text">
         <span className="strong">Open sandboxes in your ADE</span>
         <span className="small muted">
-          {here}Pick one to get an Open button on every sandbox. Change it or go back to Instabox from the menu at the top.
+          {here}Pick one to get an Open button on every sandbox. Change it or go back to InstaBox from the menu at the top.
         </span>
       </div>
       <div className="ade-card-buttons">
@@ -83,21 +83,5 @@ export function ConnectAdeCard({ state, onConnect, onNotNow }: { state: AppState
         </button>
       </div>
     </section>
-  );
-}
-
-/** After a switch to an ADE: how a sandbox without it gets it. */
-export function SwitchedHint({ state, ade, onDismiss }: { state: AppState; ade: AdeId; onDismiss: () => void }) {
-  const name = adeName(state, ade);
-  return (
-    <div className="hint" role="status">
-      <Info />
-      <span className="grow">
-        Switched to {name}. A sandbox without {name} shows Install {name}: it sets {name} up, then opens it.
-      </span>
-      <button className="icon-btn sm" aria-label="Dismiss" onClick={onDismiss}>
-        <Close />
-      </button>
-    </div>
   );
 }

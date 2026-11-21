@@ -1,4 +1,4 @@
-# Developing Instabox
+# Developing InstaBox
 
 Read this before you change the code, open a pull request, build a preview or cut a release. The README covers setup and running the app.
 
@@ -16,7 +16,7 @@ The UI never calls the instabox API itself. Every action on a sandbox, the accou
 
 ## Run it
 
-1. Quit any installed Instabox. Only one instance runs at a time.
+1. Quit any installed InstaBox. Only one instance runs at a time.
 2. `bun install`, then `bun tauri dev`.
 3. UI changes reload at once. Rust changes rebuild and restart the app.
 
@@ -53,7 +53,7 @@ The README section **Adding an ADE** lists the files to touch. The mark that say
 
 ## Preview builds
 
-A pull request can get a signed Instabox Preview, which installs next to Instabox with its own sign-in (identifier `sh.instabox.bridge.preview`).
+A pull request can get a signed Instabox Preview, which installs next to InstaBox with its own sign-in (identifier `sh.instabox.bridge.preview`).
 
 1. Add the `preview-build` label. The pull request's author must be in `.github/PREVIEW_AUTHORS`.
 2. **Preview build** (`.github/workflows/preview.yml`) builds the app from the pull request without secrets.
