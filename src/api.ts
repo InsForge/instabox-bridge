@@ -1,13 +1,28 @@
-import { invoke } from "@tauri-apps/api/core";
+import { invoke as nativeInvoke, isTauri } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
 import type { AppState, ErrorView } from "./types";
+import { isPlaceholderId, placeholderMessage } from "./placeholders";
+
+export const isBrowserPreview = import.meta.env.DEV && !isTauri();
+const preview = () => import("./preview");
+const invokeBackend = isBrowserPreview
+  ? <T,>(command: string, args?: Record<string, unknown>): Promise<T> =>
+      preview().then((p) => p.invokePreview(command, args) as Promise<T>)
+  : nativeInvoke;
+
+// Never send a sample machine ID to Tauri, even from a nested view or menu.
+const invoke = <T,>(command: string, args?: Record<string, unknown>): Promise<T> =>
+  isPlaceholderId(args?.id)
+    ? Promise.reject({ kind: "other", message: placeholderMessage })
+    : args === undefined ? invokeBackend<T>(command) : invokeBackend<T>(command, args);
 
 /** Thin wrappers over the Tauri commands. Rejections are ErrorView objects. */
 export type Agent = "claude" | "codex";
 export type McpClient = "claudeCode" | "codex";
 
 export const getState = () => invoke<AppState>("get_state");
-export const onState = (cb: (s: AppState) => void) => listen<AppState>("state", (e) => cb(e.payload));
+export const onState = (cb: (s: AppState) => void) =>
+  isBrowserPreview ? preview().then((p) => p.onPreviewState(cb)) : listen<AppState>("state", (e) => cb(e.payload));
 
 export const signIn = (provider: "github" | "google") => invoke<void>("sign_in", { provider });
 export const signOut = () => invoke<void>("sign_out");

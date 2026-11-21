@@ -2,8 +2,12 @@ import { useEffect, useState } from "react";
 import { refreshT3, signIn, T3_DOWNLOAD_URL } from "./api";
 import { openExternal, thisComputer } from "./common";
 import type { Run } from "./common";
-import { Alert, Check, Logo } from "./icons";
+import { Alert } from "./icons";
 import type { AppState } from "./types";
+import wordmark from "./assets/sign-in/instabox-wordmark.svg";
+import symbol from "./assets/sign-in/instabox-symbol.svg";
+import github from "./assets/sign-in/github.svg";
+import google from "./assets/sign-in/google.svg";
 
 /** Reads the T3 Code version on this computer again, and shows that it did. */
 export function CheckT3Button({ run }: { run: Run }) {
@@ -24,7 +28,7 @@ export function CheckT3Button({ run }: { run: Run }) {
   );
 }
 
-/** T3 Code is not on this computer: shown on first run and at the top of the list. */
+/** T3 Code is not on this computer: shown after sign-in, at the top of the list. */
 export function T3Missing({ run }: { run: Run }) {
   return (
     <div className="warn-card">
@@ -47,46 +51,29 @@ export function T3Missing({ run }: { run: Run }) {
   );
 }
 
-export default function Setup({ state, run }: { state: AppState; run: Run }) {
-  const t3Ok = state.t3 !== null;
+export default function Setup({ state, run }: { state: Pick<AppState, "signInCode">; run: Run }) {
   return (
-    <>
-      <div className="setup">
-        <div className="brand-block">
-          <Logo />
-          <div className="brand-text">
-            <h1 className="brand-name">Instabox</h1>
-            <span className="muted">Run T3 Code on an instabox sandbox.</span>
-          </div>
+    <div className="setup">
+      <div className="brand-block">
+        <div className="sign-in-logo" role="img" aria-label="InstaBox">
+          <img className="sign-in-symbol" src={symbol} alt="" />
+          <img className="sign-in-wordmark" src={wordmark} alt="" />
         </div>
-        {!t3Ok && <T3Missing run={run} />}
-        {state.signedIn ? (
-          <p className="signed-in">
-            <Check />
-            Signed in{state.login ? ` as ${state.login}` : ""}
+        <p className="muted">Run any ADE on an InstaBox Sandbox.</p>
+      </div>
+      <div className="sign-in">
+        <button className="btn primary sign-in-provider" onClick={() => run(() => signIn("github"))}>
+          <span className="sign-in-provider-label"><img src={github} alt="" />Sign in with GitHub</span>
+        </button>
+        <button className="btn primary sign-in-provider" onClick={() => run(() => signIn("google"))}>
+          <span className="sign-in-provider-label"><img src={google} alt="" />Sign in with Google</span>
+        </button>
+        {state.signInCode && (
+          <p className="sign-in-code" role="status">
+            Waiting for sign-in in your browser. Your code is <strong className="code">{state.signInCode}</strong>
           </p>
-        ) : (
-          <div className="sign-in">
-            <button className={`btn lg${t3Ok ? " primary" : ""}`} onClick={() => run(() => signIn("github"))}>
-              Sign in with GitHub
-            </button>
-            <button className="btn lg" onClick={() => run(() => signIn("google"))}>
-              Sign in with Google
-            </button>
-            {state.signInCode && (
-              <p className="sign-in-code" role="status">
-                Waiting for sign-in in your browser. Your code is <strong className="code">{state.signInCode}</strong>
-              </p>
-            )}
-          </div>
         )}
       </div>
-      {t3Ok && (
-        <div className="foot found">
-          <Check />
-          <span>T3 Code {state.t3} found on {thisComputer()}</span>
-        </div>
-      )}
-    </>
+    </div>
   );
 }

@@ -56,7 +56,7 @@ Instabox installs T3 at the same version as your T3 Code desktop app, then pairs
 
 ## Roadmap
 
-- More ADEs: Orca, cmux, Superset and others
+- More ADEs: Orca, cmux, Paradev and others
 
 ## Adding an ADE
 
@@ -93,6 +93,8 @@ bun install
 
 **Tips:**
 
+- For browser-only UI development, run `bun run dev` and open `http://localhost:1420`. It shows labeled sample data; refresh to reset. Use the menu bar app for real sandbox and desktop actions.
+- In both the browser preview and Mac app, cmux demonstrates the missing-install state, Paradev shows four sample machines, and Orca shows the empty state. These placeholder machines never call the sandbox API; T3 Code uses the real API in the Mac app.
 - Set `INSTABOX_API_URL` to point the app at another API.
 - Set `INSTABOX_API_KEY` to sign in with an API key instead of the browser.
 - You do not need an installer to see a change.

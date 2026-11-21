@@ -120,7 +120,6 @@ export default function NewSandbox({ state, run, onConnect, onCreate, onBack }: 
                 ))
               )}
             </div>
-            {free && <span className="small muted">Free plan: fixed</span>}
           </div>
 
           <div className="field">
@@ -146,7 +145,6 @@ export default function NewSandbox({ state, run, onConnect, onCreate, onBack }: 
                 )}
               </select>
             </div>
-            {free && <span className="small muted end">Free plan: fixed</span>}
           </div>
 
           <p className="info">

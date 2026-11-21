@@ -104,6 +104,8 @@ export interface ProgressView {
 export interface AppState {
   signedIn: boolean;
   login: string | null;
+  /** Optional profile details; unavailable in older native account responses. */
+  account?: { name: string | null; email: string | null; avatarUrl: string | null };
   signInCode: string | null;
   orgs: OrgView[];
   orgId: string | null;

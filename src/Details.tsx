@@ -16,11 +16,15 @@ import {
   toErrorView,
 } from "./api";
 import type { Agent } from "./api";
-import { AGENTS, agentKey, cap, copyText, isAsleep, isFree, Line, openExternal, StateDot, stateLabel, thisComputer } from "./common";
+import { AGENTS, agentKey, copyText, isAsleep, isFree, Line, openExternal, StateDot, stateLabel, thisComputer } from "./common";
 import type { AgentCache, OnAgentStatus, Run } from "./common";
 import { Check, Copy, Terminal } from "./icons";
 import Progress from "./Progress";
 import type { AppState, SandboxView } from "./types";
+import claudeLogo from "./assets/agents/claude-code.svg";
+import codexLogo from "./assets/agents/codex.svg";
+
+const agentLogos: Record<Agent, string> = { claude: claudeLogo, codex: codexLogo };
 
 interface Props {
   state: AppState;
@@ -29,13 +33,6 @@ interface Props {
   agents: AgentCache;
   onAgentStatus: OnAgentStatus;
   onConnect: (id: string) => void;
-}
-
-export function formatMinutes(m: number): string {
-  const h = Math.floor(m / 60);
-  const r = m % 60;
-  if (h === 0) return `${r} m`;
-  return r === 0 ? `${h} h` : `${h} h ${r} m`;
 }
 
 /** How the sandbox's T3 compares with T3 Code on this computer. */
@@ -69,7 +66,7 @@ function AgentRow({ id, running, agent, label, signedIn, run, onStatus }: AgentR
   }, [id, running, agent]);
   return (
     <div className="group-row">
-      <span>{label}</span>
+      <span className="agent-label"><img src={agentLogos[agent]} alt="" aria-hidden="true" />{label}</span>
       {signedIn ? (
         <span className="ok">
           <Check />
@@ -320,25 +317,11 @@ export default function Details({ state, sandbox: s, run, agents, onAgentStatus,
             </div>
           )}
 
-          {free && (
-            <p className="free-line">
-              <span>Free plan</span>
-              <span>
-                {s.cooldownMinutes !== null
-                  ? `Cooling down, ready in about ${s.cooldownMinutes} min`
-                  : s.runLeftMinutes !== null
-                    ? `Can run ${formatMinutes(s.runLeftMinutes)} more`
-                    : "Runs up to 8 h at a time"}
-              </span>
-            </p>
-          )}
+          <hr className="delete-divider" />
+          <button className="btn text red lg" onClick={() => (confirmDelete ? run(() => deleteSandbox(s.id)) : setConfirmDelete(true))}>
+            {confirmDelete ? "Confirm delete" : "Delete sandbox"}
+          </button>
         </div>
-      </div>
-      <div className="foot tight">
-        <span>{cap(state.tier)} plan</span>
-        <button className="btn text red" onClick={() => (confirmDelete ? run(() => deleteSandbox(s.id)) : setConfirmDelete(true))}>
-          {confirmDelete ? "Confirm delete" : "Delete sandbox…"}
-        </button>
       </div>
     </>
   );

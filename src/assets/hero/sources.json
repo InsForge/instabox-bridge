@@ -1,0 +1,7 @@
+{
+  "orca-underwater.png": {
+    "source": "Generated with the built-in image_gen tool",
+    "prompt": "Use case: photorealistic-natural. Asset type: transparent photographic animal sprite for a dark underwater app background. A single anatomically accurate adult killer whale (orca), entire body visible from tail flukes on the LEFT to rounded head on the RIGHT, swimming horizontally in a relaxed natural pose. True side view with a subtle three-quarter view of the belly, long powerful streamlined body, natural tall dorsal fin, near pectoral flipper angled down and back, realistic white eye patch, pale belly, black skin with subtle cool blue underwater reflected light and fine natural texture. Photoreal wildlife photography, subdued cool blue rim light from above, soft shadows, dim underwater illumination but recognizable markings. Isolated animal on a truly transparent background, no water or surrounding particles rendered into the image, no ground shadow. Wide landscape composition, whale fills width with small clear padding, all fins and tail fully inside frame. No text, no logos, no border, no illustration or cartoon.",
+    "transparentBackground": true
+  }
+}

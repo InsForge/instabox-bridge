@@ -6,7 +6,8 @@ import fixture from "./fixtures/state.json";
 import type { AppState, SandboxView } from "./types";
 
 const invoke = vi.fn();
-vi.mock("@tauri-apps/api/core", () => ({ invoke: (...a: unknown[]) => invoke(...a) }));
+vi.mock("./hero/HeroCube", () => ({ HeroCube: () => null }));
+vi.mock("@tauri-apps/api/core", () => ({ isTauri: () => true, invoke: (...a: unknown[]) => invoke(...a) }));
 let emit: (s: AppState) => void = () => {};
 vi.mock("@tauri-apps/api/event", () => ({
   listen: (_: string, cb: (e: { payload: AppState }) => void) => {
@@ -105,16 +106,95 @@ test("fixture and sample have the same nested keys", () => {
 
 // ---- list ----
 
-test("a row shows state, size and T3, and its only button is the … menu", async () => {
+test("the main view shows statuses, power controls and workspace information", async () => {
   show({}, [{}, { id: "b", name: "web", state: "paused", t3Version: null }]);
   const row = await screen.findByText("dev-1").then(() => rowOf("dev-1"));
   expect(within(row).getByText("Running")).toBeTruthy();
-  expect(within(row).getByText("4 vCPU / 8 GB · T3 0.1.10")).toBeTruthy();
-  expect(within(rowOf("web")).getByText("4 vCPU / 8 GB")).toBeTruthy();
-  expect(within(row).getAllByRole("button").map((b) => b.getAttribute("aria-label") ?? "open")).toEqual(["open", "More actions for dev-1"]);
-  for (const name of ["Open in T3 Code", "Pause", "Resume"]) expect(screen.queryByRole("button", { name })).toBeNull();
-  expect(screen.getByText("alex · Free")).toBeTruthy();
-  expect(screen.getByText("1 running · 1 paused")).toBeTruthy();
+  expect(within(rowOf("web")).getByText("Paused")).toBeTruthy();
+  expect(within(row).getAllByRole("button").map((b) => b.getAttribute("aria-label") ?? "open")).toEqual(["open", "Pause dev-1", "More actions for dev-1"]);
+  expect(screen.getByRole("button", { name: "Resume web" })).toBeTruthy();
+  expect(within(screen.getByRole("combobox", { name: "Workspace" })).queryByText("Free")).toBeNull();
+  expect(screen.getByRole("combobox", { name: "Workspace" }).textContent).toContain("org-me");
+  expect(screen.queryByText("1 running · 1 paused")).toBeNull();
+  await userEvent.click(screen.getByRole("button", { name: "Open InstaBox dashboard" }));
+  expect(invoke).toHaveBeenCalledWith("open_url", { url: "https://dashboard.instabox.sh/dashboard/machines" });
+});
+
+test("row power controls call the correct APIs without opening details", async () => {
+  show({}, [{}, { id: "b", name: "web", state: "paused" }, { id: "c", name: "stopped", state: "stopped" }, { id: "d", name: "busy", state: "waking" }]);
+  await userEvent.click(await screen.findByRole("button", { name: "Pause dev-1" }));
+  expect(invoke).toHaveBeenCalledWith("pause", { id: "a" });
+  await userEvent.click(screen.getByRole("button", { name: "Resume web" }));
+  expect(invoke).toHaveBeenCalledWith("resume", { id: "b" });
+  await userEvent.click(screen.getByRole("button", { name: "Resume stopped" }));
+  expect(invoke).toHaveBeenCalledWith("resume", { id: "c" });
+  expect(screen.queryByRole("button", { name: /^(Pause|Resume) busy$/ })).toBeNull();
+  expect(screen.queryByRole("button", { name: "Back to sandboxes" })).toBeNull();
+});
+
+test("a pending power action cannot be submitted twice and reports errors", async () => {
+  let fail!: (reason: unknown) => void;
+  show({}, [{}], { pause: () => new Promise((_, reject) => { fail = reject; }) });
+  const button = await screen.findByRole("button", { name: "Pause dev-1" });
+  await userEvent.click(button);
+  expect((button as HTMLButtonElement).disabled).toBe(true);
+  await userEvent.click(button);
+  expect(calls("pause")).toHaveLength(1);
+  await act(async () => fail({ kind: "api", message: "Unable to pause" }));
+  expect(await screen.findByText("Unable to pause")).toBeTruthy();
+  expect((button as HTMLButtonElement).disabled).toBe(false);
+});
+
+test("the ADE placeholder makes no API calls and the footer switches workspaces", async () => {
+  show({ orgs: [...sample.orgs, { id: "team", name: "Team workspace", tier: "pro", personal: false }] }, [{}, { id: "c", name: "connected-machine" }]);
+  const ade = await screen.findByRole("combobox", { name: "Development environment" });
+  await userEvent.click(ade);
+  const options = within(screen.getByRole("listbox", { name: "Development environment" })).getAllByRole("option");
+  expect(options.map((o) => o.getAttribute("aria-label"))).toEqual(["T3 Code", "Orca", "cmux", "Paradev"]);
+  expect(options.every((o) => !!o.querySelector("img[src]"))).toBe(true);
+  await userEvent.keyboard("{Escape}");
+  const before = invoke.mock.calls.length;
+  await userEvent.click(ade);
+  await userEvent.click(screen.getByRole("option", { name: "Orca" }));
+  expect(screen.getByRole("heading", { name: "No sandboxes" })).toBeTruthy();
+  expect(screen.queryByText("dev-1")).toBeNull();
+  await userEvent.click(screen.getByRole("button", { name: "New sandbox" }));
+  expect(screen.getByText(/This environment is a placeholder/)).toBeTruthy();
+  expect(screen.queryByRole("button", { name: "Create sandbox" })).toBeNull();
+
+  await userEvent.click(ade);
+  await userEvent.click(screen.getByRole("option", { name: "cmux" }));
+  expect(screen.getByText("cmux is not installed on this Mac")).toBeTruthy();
+  expect(screen.getByRole("button", { name: "Install" })).toBeTruthy();
+  expect(screen.queryByRole("button", { name: "Connect" })).toBeNull();
+
+  await userEvent.click(ade);
+  await userEvent.click(screen.getByRole("option", { name: "Paradev" }));
+  expect(screen.getByRole("heading", { name: "Sandboxes 4" })).toBeTruthy();
+  expect(screen.queryByText("dev-1")).toBeNull();
+  expect(within(rowOf("dev-workspace")).getByRole("status").textContent).toBe("Checking Paradev connection…");
+  await waitFor(() => expect(within(rowOf("website")).getByRole("button", { name: "Connect" })).toBeTruthy());
+  await userEvent.click(within(rowOf("website")).getByRole("button", { name: "Connect" }));
+  expect(within(rowOf("website")).getByRole("status").textContent).toBe("Connecting to Paradev…");
+  await waitFor(() => expect(within(rowOf("website")).queryByRole("status")).toBeNull());
+  await userEvent.click(screen.getByRole("button", { name: "Pause dev-workspace" }));
+  expect(screen.getByText(/This environment is a placeholder/)).toBeTruthy();
+  expect(invoke.mock.calls.length).toBe(before);
+  await userEvent.click(screen.getByRole("button", { name: "Settings" }));
+  await userEvent.click(screen.getByRole("button", { name: "Back to sandboxes" }));
+  expect(screen.getByRole("combobox", { name: "Development environment" }).getAttribute("title")).toBe("Paradev");
+  await userEvent.click(screen.getByRole("combobox", { name: "Workspace" }));
+  expect(within(screen.getByRole("option", { name: "org-me" })).getByText("Free")).toBeTruthy();
+  expect(within(screen.getByRole("option", { name: "Team workspace" })).getByText("Pro")).toBeTruthy();
+  await userEvent.click(screen.getByRole("option", { name: "Team workspace" }));
+  expect(invoke).toHaveBeenCalledWith("switch_org", { orgId: "team" });
+  await userEvent.click(screen.getByRole("combobox", { name: "Development environment" }));
+  await userEvent.click(screen.getByRole("option", { name: "T3 Code" }));
+  expect(screen.getByText("dev-1")).toBeTruthy();
+  expect(screen.getByText("connected-machine")).toBeTruthy();
+  expect(screen.queryByText("dev-workspace")).toBeNull();
+  await userEvent.click(screen.getByRole("button", { name: "Pause dev-1" }));
+  expect(invoke).toHaveBeenCalledWith("pause", { id: "a" });
 });
 
 test("clicking a row opens its details and Back returns to the list", async () => {
@@ -133,7 +213,8 @@ test("details of a sandbox that disappears go back to the list", async () => {
   show({}, [{}]);
   await userEvent.click(await screen.findByText("dev-1"));
   act(() => emit({ ...sample, sandboxes: [] }));
-  expect(await screen.findByText("No sandboxes yet. Create one and open it in T3 Code.")).toBeTruthy();
+  expect(await screen.findByRole("heading", { name: "No sandboxes" })).toBeTruthy();
+  expect(screen.getByText("Create one and open it in T3 Code.")).toBeTruthy();
   expect(screen.queryByRole("button", { name: "Back to sandboxes" })).toBeNull();
 });
 
@@ -159,7 +240,7 @@ test("the menu of a running, connected sandbox", async () => {
     "Copy SSH command",
     "Open in Terminal",
     "Reinstall T3",
-    "Delete sandbox…",
+    "Delete sandbox",
   ]);
   expect(screen.getByRole("button", { name: "More actions for dev-1" }).getAttribute("aria-expanded")).toBe("true");
   // The menu takes focus, so the keyboard can walk it.
@@ -179,7 +260,7 @@ test("the menu of a paused sandbox that is not in T3 Code", async () => {
     "Auto sleepAfter 30 min",
     "Copy SSH command",
     "Open in Terminal",
-    "Delete sandbox…",
+    "Delete sandbox",
   ]);
   // The free plan fixes size and auto sleep.
   const menu = within(screen.getByRole("menu"));
@@ -239,11 +320,11 @@ test("Resize and Auto sleep open their choices inside the menu", async () => {
   expect(invoke).toHaveBeenCalledWith("set_auto_sleep", { id: "a", seconds: 600 });
 });
 
-test("Delete sandbox… asks to confirm inside the menu", async () => {
+test("Delete sandbox asks to confirm inside the menu", async () => {
   show({}, [{}]);
   await screen.findByText("dev-1");
   await openMenu("dev-1");
-  await userEvent.click(screen.getByRole("menuitem", { name: "Delete sandbox…" }));
+  await userEvent.click(screen.getByRole("menuitem", { name: "Delete sandbox" }));
   expect(calls("delete").length).toBe(0);
   await userEvent.click(screen.getByRole("menuitem", { name: "Confirm delete" }));
   expect(invoke).toHaveBeenCalledWith("delete", { id: "a" });
@@ -261,11 +342,11 @@ test("Copy SSH command asks for the command only when chosen and copies it", asy
   expect(await navigator.clipboard.readText()).toBe("ssh dev-1@ssh.instabox.sh");
 });
 
-test("the details header has the same menu", async () => {
+test("the details header has no action menu and SSH opens from the page", async () => {
   show({}, [{}]);
   await userEvent.click(await screen.findByText("dev-1"));
-  await openMenu("dev-1");
-  await userEvent.click(screen.getByRole("menuitem", { name: "Open in Terminal" }));
+  expect(screen.queryByRole("button", { name: "More actions for dev-1" })).toBeNull();
+  await userEvent.click(screen.getByRole("button", { name: "Open in Terminal" }));
   expect(invoke).toHaveBeenCalledWith("open_ssh", { id: "a" });
 });
 
@@ -304,7 +385,7 @@ test("each row shows at most one line, by priority", async () => {
   expect(invoke).toHaveBeenCalledWith("connect_sandbox", { id: "d" });
 
   expect(within(rowOf("p-behind-unconnected")).queryByText("Not in T3 Code yet")).toBeNull();
-  expect(within(rowOf("p-none")).getAllByRole("button").length).toBe(2);
+  expect(within(rowOf("p-none")).getAllByRole("button").length).toBe(3);
   expect(screen.getByRole("button", { name: "More actions for p-none" })).toBeTruthy();
 });
 
@@ -570,21 +651,20 @@ test("details of an unconnected sandbox offer Connect to T3 Code", async () => {
   expect(await screen.findByText("Confirm the new environment in T3 Code")).toBeTruthy();
 });
 
-test("details show the T3 version against this Mac and the free plan line", async () => {
+test("details show the T3 version and delete action without the plan row", async () => {
   show({}, [{}]);
   await userEvent.click(await screen.findByText("dev-1"));
   expect(screen.getByText("Same as this Mac")).toBeTruthy();
-  expect(screen.getByText("Can run 1 h 20 m more")).toBeTruthy();
-  // The free plan line and the plan label in the footer.
-  expect(screen.getAllByText("Free plan").length).toBe(2);
-  expect(screen.getByText("Delete sandbox…")).toBeTruthy();
+  expect(screen.queryByText("Can run 1 h 20 m more")).toBeNull();
+  expect(screen.queryByText("Free plan")).toBeNull();
+  expect(screen.getByText("Delete sandbox")).toBeTruthy();
 });
 
 test("details ask for the SSH command only when asked, then copy it", async () => {
   const user = userEvent.setup();
   show({}, [{}]);
   await user.click(await screen.findByText("dev-1"));
-  await screen.findByText("Can run 1 h 20 m more");
+  await screen.findByText("Same as this Mac");
   expect(calls("ssh_command").length).toBe(0);
   await user.click(screen.getByRole("button", { name: "Show command" }));
   expect(await screen.findByText("ssh dev-1@ssh.instabox.sh")).toBeTruthy();
@@ -696,7 +776,7 @@ test("details: Pause, Pair again and a confirmed delete", async () => {
   expect(invoke).toHaveBeenCalledWith("pause", { id: "a" });
   await userEvent.click(screen.getByRole("button", { name: "Pair again" }));
   expect(invoke).toHaveBeenCalledWith("pair_again", { id: "a" });
-  await userEvent.click(screen.getByRole("button", { name: "Delete sandbox…" }));
+  await userEvent.click(screen.getByRole("button", { name: "Delete sandbox" }));
   expect(calls("delete").length).toBe(0);
   await userEvent.click(screen.getByRole("button", { name: "Confirm delete" }));
   expect(invoke).toHaveBeenCalledWith("delete", { id: "a" });
@@ -709,6 +789,7 @@ test("settings: update, account and this Mac", async () => {
     {
       orgs: [...sample.orgs, { id: "org-team", name: "team", tier: "pro", personal: false }],
       update: { version: "0.2.0", url: "https://example.com/v0.2.0" },
+      account: { name: "Alex Example", email: "alex@example.com", avatarUrl: null },
     },
     [{}],
   );
@@ -718,9 +799,12 @@ test("settings: update, account and this Mac", async () => {
   await userEvent.click(screen.getByRole("button", { name: "Download" }));
   expect(invoke).toHaveBeenCalledWith("open_url", { url: "https://example.com/v0.2.0" });
 
-  await userEvent.selectOptions(screen.getByLabelText("Organization"), "org-team");
-  expect(invoke).toHaveBeenCalledWith("switch_org", { orgId: "org-team" });
-  expect(screen.getByRole("option", { name: "team · Pro" })).toBeTruthy();
+  expect(screen.getByText("Alex Example")).toBeTruthy();
+  expect(screen.getByText("alex@example.com")).toBeTruthy();
+  expect(screen.queryByLabelText("Organization")).toBeNull();
+  expect(calls("switch_org")).toHaveLength(0);
+  for (const ade of ["Orca", "cmux", "Paradev"]) expect(screen.getByText(ade)).toBeTruthy();
+  expect(screen.getAllByText("Not checked")).toHaveLength(3);
 
   const login = screen.getByRole("switch", { name: "Start at login" });
   expect(login.getAttribute("aria-checked")).toBe("false");
@@ -748,11 +832,12 @@ test("settings: no section for agents on this Mac, whatever their MCP state", as
 
 // ---- first run ----
 
-test("first run with T3 Code: sign-in buttons and the found line", async () => {
+test("sign-in with T3 installed shows provider buttons without installation status", async () => {
   show({ signedIn: false, login: null });
   await userEvent.click(await screen.findByRole("button", { name: "Sign in with GitHub" }));
   expect(invoke).toHaveBeenCalledWith("sign_in", { provider: "github" });
-  expect(screen.getByText("T3 Code 0.1.10 found on this Mac")).toBeTruthy();
+  expect(screen.queryByText(/found on this Mac/)).toBeNull();
+  expect(screen.getByText("Run any ADE on an InstaBox Sandbox.")).toBeTruthy();
   expect(screen.queryByText("T3 Code is not on this Mac")).toBeNull();
   expect(screen.queryByRole("button", { name: "Settings" })).toBeNull();
 });
@@ -773,20 +858,23 @@ test("Check again shows that it is checking, then that it checked", async () => 
   expect(await screen.findByRole("button", { name: "Check again" }, { timeout: 2500 })).toBeTruthy();
 });
 
-test("first run without T3 Code: Check again and Download T3 Code", async () => {
+test("sign-in without T3 offers both providers without checking installation", async () => {
   show({ signedIn: false, t3: null });
-  expect(await screen.findByText("T3 Code is not on this Mac")).toBeTruthy();
-  await userEvent.click(screen.getByRole("button", { name: "Check again" }));
-  expect(invoke).toHaveBeenCalledWith("refresh_t3");
-  await userEvent.click(screen.getByRole("button", { name: "Download T3 Code" }));
-  expect(invoke).toHaveBeenCalledWith("open_url", { url: T3_DOWNLOAD_URL });
-  expect(screen.getByRole("button", { name: "Sign in with Google" })).toBeTruthy();
-  expect(screen.queryByText(/found on this Mac/)).toBeNull();
+  expect(await screen.findByRole("button", { name: "Sign in with GitHub" })).toBeTruthy();
+  await userEvent.click(screen.getByRole("button", { name: "Sign in with Google" }));
+  expect(invoke).toHaveBeenCalledWith("sign_in", { provider: "google" });
+  expect(screen.queryByRole("button", { name: "Check again" })).toBeNull();
+  expect(screen.queryByRole("button", { name: "Download T3 Code" })).toBeNull();
+  expect(screen.queryByText(/T3 Code is not on|found on this Mac/)).toBeNull();
+  expect(calls("refresh_t3")).toHaveLength(0);
 });
 
-test("signed in without T3 Code and no sandboxes stays on setup", async () => {
-  show({ t3: null });
-  expect(await screen.findByText("Signed in as alex")).toBeTruthy();
+test("sign-in completes without T3 and opens the empty sandbox list", async () => {
+  const { state } = show({ signedIn: false, t3: null });
+  await screen.findByRole("button", { name: "Sign in with GitHub" });
+  act(() => emit({ ...state, signedIn: true }));
+  expect(await screen.findByRole("heading", { name: "No sandboxes" })).toBeTruthy();
+  expect(screen.getByRole("button", { name: "New sandbox" })).toBeTruthy();
   expect(screen.getByText("T3 Code is not on this Mac")).toBeTruthy();
   expect(screen.queryByRole("button", { name: "Sign in with GitHub" })).toBeNull();
 });

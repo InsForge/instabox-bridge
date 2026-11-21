@@ -4,7 +4,11 @@ import { agentKey } from "./common";
 import type { AgentCache, OnAgentStatus } from "./common";
 import Details from "./Details";
 import ErrorNotice from "./ErrorNotice";
-import { Back, Dots, Gear, Mark } from "./icons";
+import { Back } from "./icons";
+import MainHeader from "./MainHeader";
+import { useAdeConnections } from "./ade";
+import type { Ade } from "./ade";
+import { placeholderMessage, placeholderSandboxes } from "./placeholders";
 import NewSandbox from "./NewSandbox";
 import type { CreateArgs } from "./NewSandbox";
 import SandboxList from "./SandboxList";
@@ -25,7 +29,14 @@ export const CONFIRM_IN_T3 = "Confirm the new environment in T3 Code";
 export const SSH_COPIED = "SSH command copied";
 
 export default function App() {
-  const [state, setState] = useState<AppState | null>(null);
+  const [ade, setAde] = useState<Ade>("t3");
+  const [sourceState, setState] = useState<AppState | null>(null);
+  // T3 uses the native state; other ADEs show independent examples on both platforms.
+  const state = sourceState && ade !== "t3"
+    ? { ...sourceState, sandboxes: placeholderSandboxes[ade], progress: null, error: null }
+    : sourceState;
+  const [adeCheckRequest, setAdeCheckRequest] = useState(0);
+  const { connections: adeConnections, connect: connectAde, missing: adeMissing } = useAdeConnections(ade, state, adeCheckRequest);
   const [view, setView] = useState<View>({ name: "list" });
   // The error of the last rejected command. state.error covers the rest.
   const [failure, setFailure] = useState<ErrorView | null>(null);
@@ -74,6 +85,15 @@ export default function App() {
 
   const closeMenu = useCallback(() => setMenu(null), []);
 
+  const changeAde = (next: Ade) => {
+    if (next === ade) return;
+    setAde(next);
+    setAdeCheckRequest((request) => request + 1);
+    setMenu(null);
+    setNotice(null);
+    setFailure(null);
+  };
+
   // A sandbox that is gone takes its details and its menu with it.
   const has = (id: string) => !!state?.sandboxes.some((s) => s.id === id);
   const detailsGone = !!state && view.name === "details" && !has(view.id);
@@ -89,7 +109,7 @@ export default function App() {
 
   const error = failure ?? state.error;
   const signedOut = !state.signedIn || error?.kind === "signedOut";
-  const needSetup = signedOut || (state.t3 === null && state.sandboxes.length === 0);
+  const needSetup = signedOut;
   const current: View = detailsGone ? { name: "list" } : view;
   const sandbox = current.name === "details" ? state.sandboxes.find((s) => s.id === current.id) : undefined;
 
@@ -112,6 +132,7 @@ export default function App() {
     void run(() => connectSandbox(id)).then((ok) => ok && setNotice(CONFIRM_IN_T3));
   };
   const create = (args: CreateArgs, size: string) => {
+    if (ade !== "t3") { setNotice(placeholderMessage); return; }
     setPending({ name: args.name, size });
     go({ name: "list" });
     void run(() => createSandbox(args)).then((ok) => ok && setNotice(CONFIRM_IN_T3));
@@ -128,16 +149,7 @@ export default function App() {
   // First run has no header: setup draws its own brand block.
   let header = null;
   if (!needSetup && current.name === "list") {
-    header = (
-      <header className="top">
-        <Mark />
-        <span className="top-title">Instabox</span>
-        <button className="icon-btn hd" aria-label="Settings" title={state.update ? "Update available" : undefined} onClick={() => go({ name: "settings" })}>
-          <Gear />
-          {state.update && <span className="badge" aria-hidden="true" />}
-        </button>
-      </header>
-    );
+    header = <MainHeader ade={ade} onAdeChange={changeAde} />;
   } else if (!needSetup) {
     const title = current.name === "new" ? "New sandbox" : current.name === "settings" ? "Settings" : (sandbox?.name ?? "");
     header = (
@@ -146,24 +158,25 @@ export default function App() {
           <Back />
         </button>
         <span className="top-title">{title}</span>
-        {sandbox && (
-          <button
-            className="icon-btn hd"
-            aria-label={`More actions for ${sandbox.name}`}
-            aria-haspopup="menu"
-            aria-expanded={menu?.id === sandbox.id}
-            onClick={(e) => toggleMenu(sandbox.id, e.currentTarget)}
-          >
-            <Dots />
-          </button>
-        )}
       </header>
     );
   }
 
+  const isList = !needSetup && current.name === "list";
+  const banners = (showError || showNotice) && (
+    <div className="banners">
+      {showError && <ErrorNotice error={error!} sandboxes={state.sandboxes} onConnect={connect} onRetry={onRetry} />}
+      {showNotice && (
+        <div className="banner info" role="status">
+          <span className="banner-text">{notice}</span>
+        </div>
+      )}
+    </div>
+  );
+
   let body;
   if (needSetup) {
-    body = <Setup state={{ ...state, signedIn: !signedOut }} run={run} />;
+    body = <Setup state={state} run={run} />;
   } else if (current.name === "new") {
     body = <NewSandbox state={state} run={run} onConnect={connect} onCreate={create} onBack={back} />;
   } else if (current.name === "settings") {
@@ -175,15 +188,21 @@ export default function App() {
   } else {
     body = (
       <SandboxList
+        header={<>{header}{banners}</>}
         state={state}
+        ade={ade}
+        adeMissing={adeMissing}
+        adeConnections={adeConnections}
+        onAdeConnect={connectAde}
         run={run}
         agents={agents}
         pending={pending}
         menuFor={menu?.id ?? null}
-        onNew={() => go({ name: "new" })}
+        onNew={() => ade === "t3" ? go({ name: "new" }) : setNotice(placeholderMessage)}
+        onSettings={() => go({ name: "settings" })}
         onConnect={connect}
-        onDetails={(id) => go({ name: "details", id })}
-        onMenu={toggleMenu}
+        onDetails={(id) => ade === "t3" ? go({ name: "details", id }) : setNotice(placeholderMessage)}
+        onMenu={(id, anchor) => ade === "t3" ? toggleMenu(id, anchor) : setNotice(placeholderMessage)}
         onAgentStatus={onAgentStatus}
       />
     );
@@ -191,18 +210,9 @@ export default function App() {
 
   const menuSandbox = menu && !needSetup && (current.name === "list" || current.name === "details") ? state.sandboxes.find((s) => s.id === menu.id) : undefined;
   return (
-    <main className="popover" ref={root}>
-      {header}
-      {(showError || showNotice) && (
-        <div className="banners">
-          {showError && <ErrorNotice error={error!} sandboxes={state.sandboxes} onConnect={connect} onRetry={onRetry} />}
-          {showNotice && (
-            <div className="banner info" role="status">
-              <span className="banner-text">{notice}</span>
-            </div>
-          )}
-        </div>
-      )}
+    <main className={`popover${needSetup ? " sign-in-view" : isList ? " main-view" : ""}`} ref={root}>
+      {!isList && header}
+      {!isList && banners}
       {body}
       {menu && menuSandbox && root.current && (
         <SandboxMenu

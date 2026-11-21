@@ -35,6 +35,12 @@ export const Back = () => (
   </svg>
 );
 
+export const ExternalLink = () => (
+  <svg width="16" height="16" viewBox="0 0 24 24" strokeWidth="1.75" aria-hidden="true" {...stroke}>
+    <path d="M14 3h7v7M21 3l-10 10M10 3H5a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-5" />
+  </svg>
+);
+
 export const Dots = () => (
   <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
     <circle cx="5" cy="12" r="1.6" />
