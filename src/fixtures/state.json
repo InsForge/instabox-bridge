@@ -149,6 +149,12 @@
       "/Applications/Instabox.app"
     ]
   },
+  "t3Switch": {
+    "id": "e",
+    "name": "name-e",
+    "oldAddress": "https://3774-e.instabox.sh",
+    "newAddress": "http://localhost:37800"
+  },
   "progress": {
     "kind": "create",
     "step": "installing",

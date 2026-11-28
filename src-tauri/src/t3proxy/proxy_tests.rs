@@ -514,6 +514,7 @@ async fn proxy_with(
         environment_id: "env-1".into(),
         upstream_url,
         client_tokens: vec![token_hash(CLIENT_TOKEN)],
+        switch_guide_done: false,
     };
     let tokens = Arc::new(MemoryTokenStore::default());
     let rt = Arc::new(Runtime::new(
@@ -743,6 +744,7 @@ async fn a_saved_bearer_session_starts_only_when_bearer_is_allowed() {
             environment_id: "env-1".into(),
             upstream_url: upstream_url.into(),
             client_tokens: vec![],
+            switch_guide_done: false,
         };
         let at = dir.path().join(id);
         std::fs::create_dir_all(&at).unwrap();
@@ -1103,6 +1105,63 @@ async fn instabox_api(
     .await;
     let client = Client::new(url::Url::parse(&api.uri()).unwrap(), Arc::new(Creds));
     (api, client)
+}
+
+#[tokio::test]
+async fn the_switch_guide_is_due_until_t3_code_pairs_or_it_is_finished() {
+    let (t3, upstream_url) = fake_t3(true).await;
+    let (_api, client) = instabox_api(&upstream_url, None).await;
+    let tokens = Arc::new(MemoryTokenStore::default());
+    let control = FakeControl::new("running", true, t3.clone());
+    let hub = |dir: &std::path::Path| {
+        Hub::new(
+            dir.to_path_buf(),
+            control.clone(),
+            tokens.clone(),
+            tuning(Duration::from_secs(60)),
+            false,
+        )
+    };
+    let dir = tempfile::tempdir().unwrap();
+    let first = hub(dir.path());
+    assert_eq!(first.switch_guide("m_test").await, None, "no proxy yet");
+    first.pair_link(&client, "m_test", "qa").await.unwrap();
+    // Paired through the proxy, but T3 Code has not used it yet: due.
+    let guide = first.switch_guide("m_test").await.unwrap();
+    assert_eq!(guide.old_address, upstream_url);
+    // What the guide copies is what T3 Code's Add route takes: a pairing URL of the proxy,
+    // whose code makes T3 Code a client of it.
+    let url = first.pairing_url("m_test").await.unwrap();
+    let (base, code) = url.split_once("/pair#token=").unwrap();
+    assert_eq!(base, guide.new_address);
+    let port = base.strip_prefix("http://localhost:").unwrap();
+    let res = reqwest::Client::new()
+        .post(format!("http://127.0.0.1:{port}/oauth/token"))
+        .form(&[
+            (
+                "grant_type",
+                "urn:ietf:params:oauth:grant-type:token-exchange",
+            ),
+            ("subject_token", code),
+        ])
+        .send()
+        .await
+        .unwrap();
+    assert_eq!(res.status(), 200);
+    assert_eq!(first.switch_guide("m_test").await, None, "T3 Code paired");
+
+    // Finished or turned off: not due, and kept in the record for the next start.
+    let dir = tempfile::tempdir().unwrap();
+    let second = hub(dir.path());
+    second.pair_link(&client, "m_test", "qa").await.unwrap();
+    assert!(second.switch_guide("m_test").await.is_some());
+    second.finish_switch_guide("m_test").await;
+    assert_eq!(second.switch_guide("m_test").await, None);
+    let saved: Record = serde_json::from_slice(
+        &std::fs::read(super::runtime::record_path(&dir.path().join("m_test"))).unwrap(),
+    )
+    .unwrap();
+    assert!(saved.switch_guide_done);
 }
 
 #[tokio::test]

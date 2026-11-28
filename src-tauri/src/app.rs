@@ -128,6 +128,20 @@ impl AdeView {
     }
 }
 
+/// A sandbox T3 Code saved with its published port, which it should reach through the T3 proxy
+/// instead: T3 Code adds the proxy as a route of the environment it saved, then removes the old
+/// route. The pairing URL to paste is never here: `copy_t3_switch_url` copies a new one.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct T3SwitchView {
+    pub id: String,
+    pub name: String,
+    /// The route T3 Code saved: the sandbox's published T3 port.
+    pub old_address: String,
+    /// The route T3 Code adds: the proxy, `http://localhost:<port>`.
+    pub new_address: String,
+}
+
 #[derive(Debug, Clone, Default, PartialEq, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct AppState {
@@ -150,6 +164,9 @@ pub struct AppState {
     pub progress: Option<ProgressView>,
     /// The old app (Instabox.app) left next to this one, offered to move to the Trash.
     pub old_app: Option<OldAppView>,
+    /// The guide that moves a sandbox T3 Code saved with its published port to the T3 proxy
+    /// (prototype, `INSTAADE_T3_PROXY`), while it shows.
+    pub t3_switch: Option<T3SwitchView>,
     pub error: Option<ErrorView>,
     pub start_at_login: bool,
     /// This build's version and its updates (see `updater`). Set once the app starts.
@@ -1864,7 +1881,13 @@ impl Core {
             }
             let link = match self.t3_proxy_for(ade, version.as_deref()) {
                 // Prototype: T3 Code pairs with the sandbox's local proxy.
-                Some(hub) => self.proxy_pair_link(&hub, &client, id, account).await?,
+                Some(hub) => {
+                    let link = self.proxy_pair_link(&hub, &client, id, account).await?;
+                    if self.offer_t3_switch(&hub, id, account).await {
+                        return Ok(None);
+                    }
+                    link
+                }
                 // The port URL stays the same, so the app updates the environment it saved.
                 None => connect::pair_link(&client, ade, id)
                     .await
@@ -2206,7 +2229,11 @@ impl Core {
                 })
                 .await
                 .map_err(ErrorView::from)?;
-                self.proxy_pair_link(&hub, &client, id, account).await?
+                let link = self.proxy_pair_link(&hub, &client, id, account).await?;
+                if self.offer_t3_switch(&hub, id, account).await {
+                    return Ok(());
+                }
+                link
             } else {
                 connect::pair_again(&client, ade, id, desktop.as_deref(), |v, out| {
                     self.record_sync(id, v, out, account)
@@ -2223,6 +2250,72 @@ impl Core {
             self.remember(id, account).await;
         }
         out
+    }
+
+    /// Shows the T3 switch guide instead of opening the proxy's pairing link, when T3 Code most
+    /// likely saved sandbox `id` with its published port: InstaADE paired it from this computer
+    /// before (`connected`), yet T3 Code never paired with its proxy (`Hub::switch_guide`). That
+    /// pairing was then a direct one, and T3 Code refuses a pairing link for an environment it
+    /// saved under another address. True when the guide shows.
+    async fn offer_t3_switch(&self, hub: &t3proxy::Hub, id: &str, account: u64) -> bool {
+        let Some(guide) = hub.switch_guide(id).await else {
+            return false;
+        };
+        self.update_in(account, |i| {
+            if !i.data.connected.contains(id) {
+                return false;
+            }
+            let name = i
+                .state
+                .sandboxes
+                .iter()
+                .find(|s| s.id == id)
+                .map_or_else(|| id.to_string(), |s| s.name.clone());
+            i.state.t3_switch = Some(T3SwitchView {
+                id: id.to_string(),
+                name,
+                old_address: guide.old_address,
+                new_address: guide.new_address,
+            });
+            true
+        }) == Some(true)
+    }
+
+    /// Copies a new pairing URL of sandbox `id`'s T3 proxy, which T3 Code's Add route takes.
+    /// Like Paradev's address, it is cleared from the clipboard a minute later.
+    pub async fn copy_t3_switch_url(self: &Arc<Self>, id: &str) -> Res<()> {
+        let (_, account) = self.signed_in()?;
+        let hub = self
+            .t3_proxy
+            .get()
+            .map(|(hub, _)| hub.clone())
+            .ok_or_else(|| ErrorView::other("The T3 proxy is off."))?;
+        let url = hub.pairing_url(id).await.ok_or_else(|| {
+            ErrorView::other(
+                "The T3 proxy of this sandbox is not running. Use Open in T3 Code again.",
+            )
+        })?;
+        let core = self.clone();
+        tokio::task::spawn_blocking(move || {
+            guarded(&core.gate(account), || core.clipboard.copy(&url))
+        })
+        .await
+        .map_err(|e| ErrorView::other(e.to_string()))?
+        .ok_or_else(account_changed)?
+        .map_err(ErrorView::other)
+    }
+
+    /// Closes the T3 switch guide of sandbox `id`. `done`: the user finished it or turned it
+    /// off, so it is not offered again for this sandbox.
+    pub async fn close_t3_switch(&self, id: &str, done: bool) {
+        if done && let Some((hub, _)) = self.t3_proxy.get() {
+            hub.finish_switch_guide(id).await;
+        }
+        self.update(|i| {
+            if i.state.t3_switch.as_ref().is_some_and(|g| g.id == id) {
+                i.state.t3_switch = None;
+            }
+        });
     }
 
     /// Adds the sandbox to the set the user connected from this computer, on disk and in
@@ -2791,6 +2884,12 @@ mod tests {
         s.old_app = Some(OldAppView {
             paths: vec!["/Applications/Instabox.app".into()],
         });
+        s.t3_switch = Some(T3SwitchView {
+            id: "e".into(),
+            name: "name-e".into(),
+            old_address: "https://3774-e.instabox.sh".into(),
+            new_address: "http://localhost:37800".into(),
+        });
         s.progress = Some(ProgressView {
             kind: "create".into(),
             step: "installing".into(),
@@ -2844,6 +2943,7 @@ mod tests {
             "mcp",
             "progress",
             "oldApp",
+            "t3Switch",
             "error",
             "startAtLogin",
             "update",
@@ -5180,6 +5280,216 @@ mod tests {
                 .message
                 .starts_with("The T3 proxy could not pair"),
             "the proxy's own pairing, against a fake descriptor"
+        );
+    }
+
+    /// A signed-in core with T3 Code 0.1.13 and sandbox m1 marked with T3 at its current
+    /// setup, `connected` from this computer or not, and a recording clipboard. With `proxy`,
+    /// the T3 proxy is on (`INSTAADE_T3_PROXY=1`) with its state in `proxy`'s folder, and the
+    /// mock server also answers as T3 on the sandbox, so the proxy pairs. The core, what it
+    /// opened, what it copied and the server.
+    async fn t3_switch_core(
+        connected: bool,
+        proxy: Option<&Path>,
+    ) -> (
+        Arc<Core>,
+        Arc<Mutex<Vec<String>>>,
+        Arc<Mutex<Vec<String>>>,
+        wiremock::MockServer,
+    ) {
+        use wiremock::matchers::{body_string_contains, method, path};
+        use wiremock::{Mock, ResponseTemplate};
+        let (server, base) =
+            cmux_server(serde_json::json!({"instabox-bridge": "t3", "instabox-ades": "t3"})).await;
+        let version = format!("t3 v0.1.13\n{}\n", crate::ade::t3::setup_line());
+        for (cmd, stdout) in [
+            ("t3 --version", version.as_str()),
+            ("t3 auth pairing create", r#"{"credential":"pc-1"}"#),
+            ("t3 pair", "Token: abc123\n"),
+        ] {
+            Mock::given(method("POST"))
+                .and(path("/v1/machines/m1/exec"))
+                .and(body_string_contains(cmd))
+                .respond_with(ResponseTemplate::new(200).set_body_json(
+                    serde_json::json!({"stdout": stdout, "stderr": "", "exitCode": 0}),
+                ))
+                .with_priority(1)
+                .mount(&server)
+                .await;
+        }
+        // T3 on the sandbox, at the published port: the same server.
+        let answers = [
+            (
+                "POST",
+                "/v1/machines/m1/ports",
+                serde_json::json!({"id": "p1", "port": 3774, "url": server.uri(), "access": "public"}),
+            ),
+            (
+                "GET",
+                "/.well-known/t3/environment",
+                serde_json::json!({"environmentId": "env-1", "label": "dev 1"}),
+            ),
+            (
+                "GET",
+                "/api/auth/session",
+                serde_json::json!({"authenticated": true,
+                    "auth": {"sessionMethods": ["dpop-access-token"]}}),
+            ),
+            (
+                "POST",
+                "/oauth/token",
+                serde_json::json!({"access_token": "up-1", "token_type": "DPoP", "expires_in": 3600}),
+            ),
+        ];
+        for (m, p, body) in answers {
+            Mock::given(method(m))
+                .and(path(p))
+                .respond_with(ResponseTemplate::new(200).set_body_json(body))
+                .mount(&server)
+                .await;
+        }
+        let copied = Arc::new(Mutex::new(Vec::new()));
+        let (core, opened) = recording_core(
+            base.clone(),
+            Arc::new(MemoryKeyStore::default()),
+            Arc::new(MemorySshStore::default()),
+            PathBuf::from("/nonexistent"),
+        );
+        let core = Arc::new(core.with_clipboard(SecretClipboard::new(
+            Arc::new(RecordingClipboard(copied.clone())),
+            Arc::new(|_| Box::pin(std::future::pending())),
+        )));
+        sign_in_as(&core, &base, 7);
+        core.update(|i| {
+            i.state.set_desktop(Ade::T3, Some("0.1.13".into()));
+            if connected {
+                i.data.connected.insert("m1".into());
+            }
+        });
+        core.refresh(false).await;
+        if let Some(dir) = proxy {
+            let source: t3proxy::hub::ClientSource = {
+                let core = Arc::downgrade(&core);
+                Arc::new(move || core.upgrade().and_then(|c| c.current_client()))
+            };
+            let hub = t3proxy::Hub::new(
+                dir.to_path_buf(),
+                Arc::new(t3proxy::hub::Instabox::new(source)),
+                Arc::new(t3proxy::hub::MemoryTokenStore::default()),
+                t3proxy::runtime::Tuning::default(),
+                false,
+            );
+            core.set_t3_proxy(hub, t3proxy::Gate::Tested);
+        }
+        (core, opened, copied, server)
+    }
+
+    fn take(list: &Mutex<Vec<String>>) -> Vec<String> {
+        std::mem::take(&mut *list.lock().unwrap())
+    }
+
+    /// T3 Code's Add route with what the guide copied: the code becomes T3 Code's token.
+    async fn add_route(url: &str) {
+        let (base, code) = url.split_once("/pair#token=").unwrap();
+        let port = base.strip_prefix("http://localhost:").unwrap();
+        let res = reqwest::Client::new()
+            .post(format!("http://127.0.0.1:{port}/oauth/token"))
+            .form(&[
+                (
+                    "grant_type",
+                    "urn:ietf:params:oauth:grant-type:token-exchange",
+                ),
+                ("subject_token", code),
+            ])
+            .send()
+            .await
+            .unwrap();
+        assert_eq!(res.status(), 200, "the proxy takes the copied code");
+    }
+
+    // One test, so that its proxies take their ports one after the other.
+    #[tokio::test]
+    async fn the_t3_switch_guide_shows_until_t3_code_uses_the_proxy_or_it_is_done() {
+        let proxy_link = |opened: &[String]| {
+            opened.len() == 1
+                && opened[0].starts_with("t3code://pair?pairingUrl=http%3A%2F%2Flocalhost%3A")
+        };
+        // A sandbox InstaADE paired before, which T3 Code never reached through the proxy: the
+        // guide shows instead of the pairing link, which T3 Code would refuse.
+        let dir = tempfile::tempdir().unwrap();
+        let (core, opened, copied, server) = t3_switch_core(true, Some(dir.path())).await;
+        assert_eq!(core.open_in_ade("m1", Some(Ade::T3)).await, Ok(None));
+        assert!(take(&opened).is_empty(), "no pairing link opened");
+        let guide = core.state().t3_switch.expect("the guide shows");
+        assert_eq!((guide.id.as_str(), guide.name.as_str()), ("m1", "dev 1"));
+        assert_eq!(guide.old_address, server.uri());
+        assert!(guide.new_address.starts_with("http://localhost:"));
+        // Copy: a new pairing URL of the proxy, never in the state.
+        core.copy_t3_switch_url("m1").await.unwrap();
+        let url = take(&copied).pop().unwrap();
+        assert!(url.starts_with(&format!("{}/pair#token=", guide.new_address)));
+        assert!(
+            !serde_json::to_string(&core.state())
+                .unwrap()
+                .contains("token=")
+        );
+        // Closed for now: Pair again shows it again.
+        core.close_t3_switch("m1", false).await;
+        assert_eq!(core.state().t3_switch, None);
+        assert_eq!(core.pair_again("m1", None).await, Ok(()));
+        assert!(take(&opened).is_empty());
+        assert!(core.state().t3_switch.is_some(), "shown again");
+        // T3 Code added the proxy as a route: switched, the guide is not due any more.
+        core.copy_t3_switch_url("m1").await.unwrap();
+        add_route(&take(&copied).pop().unwrap()).await;
+        core.close_t3_switch("m1", false).await;
+        assert_eq!(core.open_in_ade("m1", Some(Ade::T3)).await, Ok(None));
+        assert!(proxy_link(&take(&opened)), "the proxy's pairing link opens");
+        assert_eq!(core.state().t3_switch, None);
+
+        // Done (or Don't show again): not offered again for that sandbox, also after a restart.
+        let dir = tempfile::tempdir().unwrap();
+        let (core, opened, _, _server) = t3_switch_core(true, Some(dir.path())).await;
+        assert_eq!(core.open_in_ade("m1", Some(Ade::T3)).await, Ok(None));
+        assert!(core.state().t3_switch.is_some());
+        core.close_t3_switch("m1", true).await;
+        assert_eq!(core.state().t3_switch, None);
+        assert_eq!(core.open_in_ade("m1", Some(Ade::T3)).await, Ok(None));
+        assert!(proxy_link(&take(&opened)));
+        assert_eq!(core.state().t3_switch, None);
+        let saved: t3proxy::runtime::Record = serde_json::from_slice(
+            &std::fs::read(t3proxy::runtime::record_path(&dir.path().join("m1"))).unwrap(),
+        )
+        .unwrap();
+        assert!(saved.switch_guide_done, "kept for the next start");
+
+        // A sandbox InstaADE never paired from here: T3 Code has not saved it, no guide.
+        let dir = tempfile::tempdir().unwrap();
+        let (core, opened, _, _server) = t3_switch_core(false, Some(dir.path())).await;
+        assert_eq!(core.pair_again("m1", None).await, Ok(()));
+        assert!(proxy_link(&take(&opened)));
+        assert_eq!(core.state().t3_switch, None);
+    }
+
+    #[tokio::test]
+    async fn the_t3_switch_guide_never_shows_with_the_proxy_off() {
+        let (core, opened, _, _server) = t3_switch_core(true, None).await;
+        assert_eq!(core.open_in_ade("m1", Some(Ade::T3)).await, Ok(None));
+        assert_eq!(core.pair_again("m1", None).await, Ok(()));
+        let opened = take(&opened);
+        assert_eq!(opened.len(), 2);
+        assert!(
+            opened.iter().all(|l| l.starts_with("t3code://pair?pairingUrl=http")
+                && !l.contains("localhost")),
+            "{opened:?}"
+        );
+        assert_eq!(core.state().t3_switch, None);
+        assert!(
+            core.copy_t3_switch_url("m1")
+                .await
+                .unwrap_err()
+                .message
+                .contains("off")
         );
     }
 

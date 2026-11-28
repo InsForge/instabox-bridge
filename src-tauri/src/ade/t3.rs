@@ -309,9 +309,14 @@ pub fn parse_pair_code(stdout: &str) -> Option<String> {
     })
 }
 
+/// The pairing URL T3 Code takes for a server at `port_url` and a pairing code.
+pub fn pairing_url(port_url: &str, code: &str) -> String {
+    format!("{}/pair#token={}", port_url.trim_end_matches('/'), code)
+}
+
 /// The `t3code://pair` link for a published port URL and a pairing code.
 pub fn pairing_link(port_url: &str, code: &str) -> String {
-    let pairing = format!("{}/pair#token={}", port_url.trim_end_matches('/'), code);
+    let pairing = pairing_url(port_url, code);
     let mut out = String::from("t3code://pair?pairingUrl=");
     for b in pairing.bytes() {
         if b.is_ascii_alphanumeric() || matches!(b, b'-' | b'_' | b'.' | b'~') {

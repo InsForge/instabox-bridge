@@ -246,6 +246,8 @@ pub fn run() {
             commands::refresh_t3,
             commands::open_in_t3,
             commands::pair_again,
+            commands::copy_t3_switch_url,
+            commands::close_t3_switch,
             commands::pause,
             commands::resume,
             commands::delete,

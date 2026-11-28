@@ -124,6 +124,10 @@ pub struct Record {
     /// SHA-256 of each token the proxy gave T3 Code.
     #[serde(default)]
     pub client_tokens: Vec<String>,
+    /// The user finished the guide that moves T3 Code's saved environment to the proxy, or
+    /// turned it off for this sandbox (`Hub::switch_guide`).
+    #[serde(default)]
+    pub switch_guide_done: bool,
 }
 
 pub fn record_path(dir: &Path) -> PathBuf {

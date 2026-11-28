@@ -492,13 +492,15 @@ impl Hub {
                     Some(p) => p,
                     None => self.free_port().await?,
                 };
+                let saved = saved.unwrap_or_default();
                 let record = Record {
                     id: id.to_string(),
                     name: name.to_string(),
                     port,
                     environment_id,
                     upstream_url: upstream.clone(),
-                    client_tokens: saved.map(|r| r.client_tokens).unwrap_or_default(),
+                    client_tokens: saved.client_tokens,
+                    switch_guide_done: saved.switch_guide_done,
                 };
                 self.start(record, credential.clone()).await?
             }
@@ -524,6 +526,46 @@ impl Hub {
             &code,
         ))
     }
+
+    /// The guide that moves T3 Code's saved environment of sandbox `id` to the proxy, when it
+    /// is due: the proxy runs, T3 Code never paired with it (it holds no token of the proxy),
+    /// and the user did not finish the guide or turn it off. Whether T3 Code saved the sandbox
+    /// with its published port is the caller's to judge.
+    pub async fn switch_guide(&self, id: &str) -> Option<SwitchGuide> {
+        let r = self.runtime(id).await?.record();
+        (r.client_tokens.is_empty() && !r.switch_guide_done).then(|| SwitchGuide {
+            old_address: r.upstream_url.clone(),
+            new_address: format!("http://localhost:{}", r.port),
+        })
+    }
+
+    /// The user finished the guide of sandbox `id`, or turned it off: it is not due again.
+    pub async fn finish_switch_guide(&self, id: &str) {
+        if let Some(rt) = self.runtime(id).await {
+            rt.update_record(|r| r.switch_guide_done = true);
+        }
+    }
+
+    /// A new pairing URL of sandbox `id`'s proxy, the one T3 Code's Add route takes:
+    /// `http://localhost:<port>/pair#token=<code>`. Its code replaces the one before and works
+    /// once, for 15 minutes.
+    pub async fn pairing_url(&self, id: &str) -> Option<String> {
+        let rt = self.runtime(id).await?;
+        let code = rt.auth.new_pairing_code();
+        Some(t3::pairing_url(
+            &format!("http://localhost:{}", rt.record().port),
+            &code,
+        ))
+    }
+}
+
+/// Where T3 Code reaches a sandbox before and after it moves to the proxy.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct SwitchGuide {
+    /// The published port T3 Code saved the sandbox with.
+    pub old_address: String,
+    /// The proxy, `http://localhost:<port>`.
+    pub new_address: String,
 }
 
 #[cfg(test)]
