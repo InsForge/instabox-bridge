@@ -17,6 +17,7 @@ import type { PendingCreate } from "./SandboxList";
 import SandboxMenu from "./SandboxMenu";
 import Settings from "./Settings";
 import Setup from "./Setup";
+import T3SwitchGuide from "./T3SwitchGuide";
 import type { AdeId, AppState, ErrorView } from "./types";
 
 type View = { name: "list" } | { name: "new" } | { name: "settings" } | { name: "details"; id: string };
@@ -275,6 +276,7 @@ export default function App({ showHero = false }: { showHero?: boolean }) {
           onClose={closeMenu}
         />
       )}
+      {state.t3Switch && !needSetup && <T3SwitchGuide key={state.t3Switch.id} guide={state.t3Switch} run={run} />}
     </main>
   );
 }

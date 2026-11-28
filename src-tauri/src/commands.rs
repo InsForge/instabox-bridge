@@ -101,6 +101,21 @@ pub async fn pair_again(core: Shared<'_>, id: String, ade: Option<Ade>) -> Res<(
     core.inner().clone().pair_again(&id, ade).await
 }
 
+/// Copies a new pairing URL of the sandbox's T3 proxy, for T3 Code's Add route (the T3 switch
+/// guide). It is cleared from the clipboard a minute later.
+#[tauri::command]
+pub async fn copy_t3_switch_url(core: Shared<'_>, id: String) -> Res<()> {
+    core.inner().clone().copy_t3_switch_url(&id).await
+}
+
+/// Closes the T3 switch guide. `done`: finished or turned off, so it is not offered again for
+/// the sandbox.
+#[tauri::command]
+pub async fn close_t3_switch(core: Shared<'_>, id: String, done: bool) -> Res<()> {
+    core.inner().clone().close_t3_switch(&id, done).await;
+    Ok(())
+}
+
 #[tauri::command]
 pub async fn pause(core: Shared<'_>, id: String) -> Res<()> {
     core.inner().clone().pause(&id).await

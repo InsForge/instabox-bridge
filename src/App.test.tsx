@@ -42,6 +42,7 @@ const sample: AppState = {
   mcp: { claudeCode: true, codex: false },
   progress: null,
   oldApp: null,
+  t3Switch: null,
   error: null,
   startAtLogin: false,
   update: null,
@@ -135,6 +136,7 @@ test("fixture and sample have the same nested keys", () => {
     sandboxes: [box],
     progress: { kind: "create", step: "x", machineId: null, ade: "t3", error: null },
     oldApp: { paths: [""] },
+    t3Switch: { id: "", name: "", oldAddress: "", newAddress: "" },
     error: { kind: "other", message: "" },
     update: { current: "", enabled: true, step: "idle", version: null, percent: null, error: null },
   };

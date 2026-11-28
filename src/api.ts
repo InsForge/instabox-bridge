@@ -60,6 +60,10 @@ export const setStartAtLogin = (on: boolean) => invoke<void>("set_start_at_login
 export const trashOldApp = () => invoke<void>("trash_old_app");
 /** Stops offering the old app until the next launch. */
 export const dismissOldApp = () => invoke<void>("dismiss_old_app");
+/** Copies a new pairing URL of the sandbox's T3 proxy for T3 Code's Add route. It is cleared a minute later. */
+export const copyT3SwitchUrl = (id: string) => invoke<void>("copy_t3_switch_url", { id });
+/** Closes the T3 switch guide. done: finished or turned off, so it does not show again for the sandbox. */
+export const closeT3Switch = (id: string, done: boolean) => invoke<void>("close_t3_switch", { id, done });
 export const openUrl = (url: string) => invoke<void>("open_url", { url });
 /** Reads the update manifest now. Never downloads. The result shows in state.update. */
 export const checkForUpdates = () => invoke<void>("check_for_updates");

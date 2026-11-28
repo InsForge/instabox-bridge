@@ -98,6 +98,20 @@ export interface OldAppView {
   paths: string[];
 }
 
+/**
+ * A sandbox T3 Code saved with its published port, which it should reach through the local T3
+ * proxy instead (Rust: `app::T3SwitchView`). The pairing URL to paste is never here:
+ * copyT3SwitchUrl copies a new one.
+ */
+export interface T3SwitchView {
+  id: string;
+  name: string;
+  /** The route T3 Code saved: the sandbox's published T3 port. */
+  oldAddress: string;
+  /** The route T3 Code adds: the proxy, http://localhost:<port>. */
+  newAddress: string;
+}
+
 /** step: connecting | creating | waking | installing | pairing | done */
 export interface ProgressView {
   /** create: a new sandbox. connect: one that exists. */
@@ -147,6 +161,8 @@ export interface AppState {
   mcp: McpStatus;
   progress: ProgressView | null;
   oldApp: OldAppView | null;
+  /** The guide that moves a sandbox to the local T3 proxy, while it shows. */
+  t3Switch: T3SwitchView | null;
   error: ErrorView | null;
   startAtLogin: boolean;
   update: UpdateView | null;

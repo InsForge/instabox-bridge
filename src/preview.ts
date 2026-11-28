@@ -7,6 +7,10 @@ let state: AppState = {
   login: "preview",
   progress: null,
   oldApp: null,
+  // `?guide=t3-switch` shows the T3 switch guide for dev-workspace.
+  t3Switch: typeof window !== "undefined" && new URLSearchParams(window.location.search).get("guide") === "t3-switch"
+    ? { ...fixture.t3Switch, id: fixture.sandboxes[0].id, name: "dev-workspace" }
+    : null,
   error: null,
   // Like a dev build: Settings shows the version and says updates are only for released builds.
   update: { current: fixture.update.current, enabled: false, step: "idle", version: null, percent: null, error: null },
@@ -89,6 +93,9 @@ export async function invokePreview(command: string, args: Record<string, unknow
     case "set_start_at_login": state = { ...state, startAtLogin: Boolean(args.on) }; break;
     case "dismiss_progress": state = { ...state, progress: null }; break;
     case "dismiss_old_app": state = { ...state, oldApp: null }; break;
+    // Nothing is copied: there is no T3 proxy here.
+    case "copy_t3_switch_url": return undefined;
+    case "close_t3_switch": state = { ...state, t3Switch: null }; break;
     default:
       throw { kind: "other", message: "This is a browser preview. Use the InstaADE menu bar app for this action." };
   }

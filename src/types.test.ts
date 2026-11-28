@@ -23,6 +23,7 @@ describe("AppState fixture", () => {
         "mcp",
         "progress",
         "oldApp",
+        "t3Switch",
         "error",
         "startAtLogin",
         "update",
