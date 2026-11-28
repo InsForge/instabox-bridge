@@ -23,7 +23,7 @@
 
 ## Getting Started
 
-You need macOS or Windows (x64), an [instabox](https://instabox.sh) account, and the desktop app of your ADE (see [Supported ADEs](#supported-ades)).
+You need macOS or Windows (x64), an [instabox](https://instabox.sh) account, and your ADE's desktop app if it has one (see [Supported ADEs](#supported-ades)).
 
 1. Download the latest release from [Releases](https://github.com/InsForge/instaADE/releases/latest):
    - macOS: the `.dmg`, `aarch64` for Apple silicon, `x64` for Intel.
@@ -36,7 +36,7 @@ You need macOS or Windows (x64), an [instabox](https://instabox.sh) account, and
 4. Sign in with GitHub or Google.
 5. Pick your ADE in the menu at the top. **InstaBox** shows sandboxes only.
 6. Click **New sandbox**, pick a size, then click **Create sandbox**.
-7. Confirm the sandbox in your ADE. Orca, Paradev and Paseo need one more step the first time, below.
+7. Confirm the sandbox in your ADE if it asks. Orca, Paradev and Paseo need one more step the first time, below.
 
 ## Features
 
