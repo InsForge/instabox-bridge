@@ -53,18 +53,11 @@ export default function T3SwitchGuide({ guide, run }: { guide: T3SwitchView; run
             <Close />
           </button>
         </div>
-        <p className="muted">T3 Code saved this sandbox with its old address. That address keeps the sandbox awake.</p>
+        <p className="muted">T3 Code still uses this sandbox's old address, which keeps it awake.</p>
         <ol className="dialog-steps">
+          <li>In T3 Code, open Settings → Environments → Routes on this sandbox.</li>
           <li>
-            In T3 Code, open Settings. Under Connections, click Environments. If you see a map, click List.
-          </li>
-          <li>
-            On this sandbox's row, click Routes. One route shows <span className="soft">{guide.oldAddress}</span>.
-          </li>
-          <li>Click Add route. Keep Remote link selected.</li>
-          <li>
-            Click Copy. Paste into Host. It fills Pairing code too. Click Add route. The new route shows as This
-            device.
+            Click Add route, paste this link, then click Add route.
             <div className="ssh dialog-copy">
               <code className="ssh-box" aria-label={`Pairing link for ${guide.newAddress}`}>
                 <span>{guide.newAddress}/pair#token=••••••</span>
@@ -79,15 +72,13 @@ export default function T3SwitchGuide({ guide, run }: { guide: T3SwitchView; run
                 {error}
               </p>
             ) : (
-              <p className="small muted">The link works once, for 15 minutes. The clipboard clears after a minute.</p>
+              <p className="small muted">Works once, within 15 minutes.</p>
             )}
           </li>
           <li>
-            On the route with <span className="soft">{guide.oldAddress}</span>, click Remove route (×). Then click
-            Confirm.
+            Remove the old route (<span className="soft">{guide.oldAddress}</span>).
           </li>
         </ol>
-        <p className="muted">Your chats and settings stay. Only the address changes.</p>
         <div className="dialog-foot">
           <button className="btn text muted" onClick={() => close(true)}>
             Don't show again

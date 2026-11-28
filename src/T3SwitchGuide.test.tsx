@@ -50,16 +50,13 @@ const calls = (cmd: string) => invoke.mock.calls.filter((c) => c[0] === cmd);
 test("t3 switch guide: steps with T3 Code's labels and the sandbox's addresses", async () => {
   show(guide);
   const d = within(await dialog());
-  expect(d.getByText("T3 Code saved this sandbox with its old address. That address keeps the sandbox awake.")).toBeTruthy();
+  expect(d.getByText("T3 Code still uses this sandbox's old address, which keeps it awake.")).toBeTruthy();
   const steps = d.getAllByRole("listitem").map((li) => li.textContent);
-  expect(steps).toHaveLength(5);
-  expect(steps[0]).toContain("open Settings. Under Connections, click Environments. If you see a map, click List.");
-  expect(steps[1]).toBe(`On this sandbox's row, click Routes. One route shows ${guide.oldAddress}.`);
-  expect(steps[2]).toBe("Click Add route. Keep Remote link selected.");
-  expect(steps[3]).toContain("Click Copy. Paste into Host. It fills Pairing code too. Click Add route.");
-  expect(steps[3]).toContain("The new route shows as This device.");
-  expect(steps[4]).toBe(`On the route with ${guide.oldAddress}, click Remove route (×). Then click Confirm.`);
-  expect(d.getByText("Your chats and settings stay. Only the address changes.")).toBeTruthy();
+  expect(steps).toHaveLength(3);
+  expect(steps[0]).toBe("In T3 Code, open Settings → Environments → Routes on this sandbox.");
+  expect(steps[1]).toContain("Click Add route, paste this link, then click Add route.");
+  expect(steps[1]).toContain("Works once, within 15 minutes.");
+  expect(steps[2]).toBe(`Remove the old route (${guide.oldAddress}).`);
   // What to paste: the proxy's address, never its one-time code.
   expect(d.getByLabelText(`Pairing link for ${guide.newAddress}`).textContent).toBe(`${guide.newAddress}/pair#token=••••••`);
   // No em dashes or semicolons in what it says.
